@@ -1,0 +1,114 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>{{ titulo }}</title>
+  <style>
+    :root { --verde: #16a34a; --escuro: #0f172a; --fundo: #f1f5f9; --cinza: #64748b; }
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body { font-family: system-ui, sans-serif; background: var(--fundo); color: var(--escuro); }
+    header { background: var(--escuro); color: #fff; padding: 1.25rem 2rem; display: flex;
+             justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 1rem; }
+    header h1 { font-size: 1.4rem; }
+    nav a { color: #cbd5e1; margin-right: 1rem; text-decoration: none; font-size: .95rem; }
+    nav a:hover, nav a.ativa { color: #fff; font-weight: 600; }
+    .carrinho-badge { background: var(--verde); padding: .25rem .7rem; border-radius: 999px; font-size: .9rem; }
+    .aviso { max-width: 1100px; margin: 1rem auto 0; padding: 0 1rem; }
+    .aviso div { padding: .75rem 1rem; border-radius: 8px; margin-bottom: .5rem; font-size: .95rem; }
+    .aviso .sucesso { background: #dcfce7; color: #14532d; }
+    .aviso .erro { background: #fee2e2; color: #7f1d1d; }
+    main { max-width: 1100px; margin: 2rem auto; padding: 0 1rem; display: grid; gap: 1.5rem; }
+    @media (min-width: 900px) { main { grid-template-columns: 2fr 1fr; } }
+    h2 { font-size: 1.1rem; margin-bottom: 1rem; color: var(--verde); }
+    .grade { display: grid; gap: 1rem; grid-template-columns: repeat(auto-fill, minmax(220px, 1fr)); }
+    .produto { background: #fff; border-radius: 12px; padding: 1.25rem; box-shadow: 0 1px 3px rgba(0,0,0,.08);
+               display: flex; flex-direction: column; gap: .5rem; }
+    .produto .icone { font-size: 2.5rem; text-align: center; }
+    .produto h3 { font-size: 1rem; }
+    .produto p { font-size: .85rem; color: var(--cinza); flex: 1; }
+    .preco { font-weight: 700; font-size: 1.1rem; }
+    .estoque { font-size: .8rem; color: var(--cinza); }
+    .esgotado { color: #dc2626; font-weight: 600; }
+    button { cursor: pointer; border: none; border-radius: 8px; padding: .6rem; font-weight: 600;
+             background: var(--verde); color: #fff; width: 100%; }
+    button:disabled { background: #cbd5e1; cursor: not-allowed; }
+    button:hover:not(:disabled) { filter: brightness(.92); }
+    .card { background: #fff; border-radius: 12px; padding: 1.25rem; box-shadow: 0 1px 3px rgba(0,0,0,.08);
+            align-self: start; position: sticky; top: 1rem; }
+    .item { display: flex; justify-content: space-between; padding: .6rem 0; border-bottom: 1px solid #e2e8f0; font-size: .9rem; }
+    .total { display: flex; justify-content: space-between; font-weight: 700; font-size: 1.1rem; margin: 1rem 0; }
+    .vazio { color: var(--cinza); font-size: .9rem; }
+    footer { text-align: center; color: var(--cinza); padding: 2rem; font-size: .85rem; }
+  </style>
+</head>
+<body>
+  <header>
+    <h1>🏅 {{ titulo }}</h1>
+    <nav>
+      <a href="{{ url_for('vitrine') }}" class="{{ 'ativa' if not categoria_atual }}">Todos</a>
+      {% for cat in categorias %}
+        <a href="{{ url_for('vitrine', categoria=cat) }}" class="{{ 'ativa' if categoria_atual == cat }}">{{ cat }}</a>
+      {% endfor %}
+    </nav>
+    <span class="carrinho-badge">🛒 {{ qtd_carrinho }}</span>
+  </header>
+
+  {% with mensagens = get_flashed_messages(with_categories=true) %}
+    {% if mensagens %}
+    <div class="aviso">
+      {% for categoria, texto in mensagens %}
+        <div class="{{ categoria }}">{{ texto }}</div>
+      {% endfor %}
+    </div>
+    {% endif %}
+  {% endwith %}
+
+  <main>
+    <section>
+      <h2>{{ categoria_atual or 'Todos os produtos' }}</h2>
+      <div class="grade">
+        {% for p in produtos %}
+        <article class="produto">
+          <div class="icone">{{ p.emoji }}</div>
+          <h3>{{ p.nome }}</h3>
+          <p>{{ p.descricao }}</p>
+          <div class="preco">{{ p.preco_formatado }}</div>
+          {% if p.disponivel %}
+            <span class="estoque">{{ p.estoque }} em estoque</span>
+          {% else %}
+            <span class="esgotado">Esgotado</span>
+          {% endif %}
+          <form method="post" action="{{ url_for('adicionar', produto_id=p.id) }}">
+            <button type="submit" {{ 'disabled' if not p.disponivel }}>Adicionar ao carrinho</button>
+          </form>
+        </article>
+        {% else %}
+        <p class="vazio">Nenhum produto nesta categoria.</p>
+        {% endfor %}
+      </div>
+    </section>
+
+    <aside class="card">
+      <h2>Carrinho</h2>
+      {% for item in itens %}
+        <div class="item">
+          <span>{{ item.quantidade }}x {{ item.produto.nome }}</span>
+          <strong>{{ item.subtotal_formatado }}</strong>
+        </div>
+      {% else %}
+        <p class="vazio">Seu carrinho está vazio.</p>
+      {% endfor %}
+
+      {% if itens %}
+      <div class="total"><span>Total</span><span>{{ total }}</span></div>
+      <form method="post" action="{{ url_for('finalizar') }}">
+        <button type="submit">Finalizar compra</button>
+      </form>
+      {% endif %}
+    </aside>
+  </main>
+
+  <footer>© 2026 {{ titulo }} · Loja de demonstração</footer>
+</body>
+</html>
