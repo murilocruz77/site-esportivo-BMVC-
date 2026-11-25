@@ -58,3 +58,4 @@ class Loja:
             self._produtos[pid].baixar_estoque(qtd)
         self._carrinho.esvaziar()
         return total
+    #oi delicia, se vc viu...
