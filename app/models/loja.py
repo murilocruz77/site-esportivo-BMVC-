@@ -1,5 +1,21 @@
 from app.models.carrinho import Carrinho
-from app.models.produto import Produto
+from app.models.produto import Produto, formatar_moeda
+
+
+class ItemCarrinho:
+    """Um produto dentro do carrinho, com a quantidade escolhida."""
+
+    def __init__(self, produto: Produto, quantidade: int):
+        self.produto = produto
+        self.quantidade = quantidade
+
+    @property
+    def subtotal(self) -> float:
+        return self.produto.preco * self.quantidade
+
+    @property
+    def subtotal_formatado(self) -> str:
+        return formatar_moeda(self.subtotal)
 
 
 class Loja:
@@ -38,9 +54,9 @@ class Loja:
             raise ValueError(f"Estoque insuficiente para {produto.nome}.")
         self._carrinho.adicionar(produto_id, quantidade)
 
-    def itens_carrinho(self) -> list[tuple[Produto, int]]:
+    def itens_carrinho(self) -> list[ItemCarrinho]:
         return [
-            (self._produtos[pid], qtd)
+            ItemCarrinho(self._produtos[pid], qtd)
             for pid, qtd in self._carrinho.itens()
         ]
 
@@ -48,7 +64,7 @@ class Loja:
         return self._carrinho.total_de_unidades()
 
     def total_carrinho(self) -> float:
-        return sum(produto.preco * qtd for produto, qtd in self.itens_carrinho())
+        return sum(item.subtotal for item in self.itens_carrinho())
 
     def finalizar_compra(self) -> float:
         if self._carrinho.vazio():
@@ -58,4 +74,4 @@ class Loja:
             self._produtos[pid].baixar_estoque(qtd)
         self._carrinho.esvaziar()
         return total
-    #oi delicia, se vc viu...
+

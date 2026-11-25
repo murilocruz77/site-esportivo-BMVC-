@@ -1,55 +1,62 @@
-from flask import Flask, flash, redirect, request, url_for
-
-from app.models.loja import Loja
-from app.models.produto import formatar_moeda
-from app.views.loja_view import LojaView
+from app.models.carrinho import Carrinho
+from app.models.produto import ItemCarrinho, Produto
 
 
-class LojaController:
-    """Recebe as requisições, chama o Model e entrega os dados à View."""
+class Loja:
+    """Regras da loja: catálogo, carrinho e finalização da compra."""
 
-    def __init__(self, app: Flask, loja: Loja, view: LojaView):
-        self.loja = loja
-        self.view = view
-        self._registrar_rotas(app)
+    def __init__(self, nome: str):
+        self.nome = nome
+        self._produtos: dict[int, Produto] = {}
+        self.carrinho = Carrinho()
 
-    def _registrar_rotas(self, app: Flask) -> None:
-        app.add_url_rule("/", "vitrine", self.vitrine)
-        app.add_url_rule(
-            "/carrinho/adicionar/<int:produto_id>",
-            "adicionar",
-            self.adicionar,
-            methods=["POST"],
-        )
-        app.add_url_rule(
-            "/carrinho/finalizar", "finalizar", self.finalizar, methods=["POST"]
-        )
+    def cadastrar_produto(self, produto: Produto) -> None:
+        if produto.id in self._produtos:
+            raise ValueError(f"Já existe um produto com id {produto.id}.")
+        self._produtos[produto.id] = produto
 
-    def vitrine(self):
-        categoria = request.args.get("categoria")
-        contexto = {
-            "titulo": self.loja.nome,
-            "categorias": self.loja.categorias(),
-            "categoria_atual": categoria,
-            "produtos": self.loja.produtos(categoria),
-            "itens": self.loja.itens_carrinho(),
-            "qtd_carrinho": self.loja.quantidade_no_carrinho(),
-            "total": formatar_moeda(self.loja.total_carrinho()),
-        }
-        return self.view.renderizar_vitrine(contexto)
-
-    def adicionar(self, produto_id: int):
+    def buscar_produto(self, produto_id: int) -> Produto:
         try:
-            self.loja.adicionar_ao_carrinho(produto_id)
-            flash("Produto adicionado ao carrinho.", "sucesso")
-        except ValueError as erro:
-            flash(str(erro), "erro")
-        return redirect(request.referrer or url_for("vitrine"))
+            return self._produtos[produto_id]
+        except KeyError:
+            raise ValueError("Produto não encontrado.") from None
 
-    def finalizar(self):
-        try:
-            total = self.loja.finalizar_compra()
-            flash(f"Compra realizada! Total: {formatar_moeda(total)}.", "sucesso")
-        except ValueError as erro:
-            flash(str(erro), "erro")
-        return redirect(url_for("vitrine"))
+    def produtos(self, categoria: str | None = None) -> list[Produto]:
+        lista = list(self._produtos.values())
+        if categoria:
+            lista = [p for p in lista if p.categoria == categoria]
+        return lista
+
+    def categorias(self) -> list[str]:
+        return sorted({p.categoria for p in self._produtos.values()})
+
+    def adicionar_ao_carrinho(self, produto_id: int, quantidade: int = 1) -> None:
+        produto = self.buscar_produto(produto_id)
+        if not produto.disponivel:
+            raise ValueError(f"{produto.nome} está esgotado.")
+        if self.carrinho.quantidade(produto_id) + quantidade > produto.estoque:
+            raise ValueError(f"Estoque insuficiente para {produto.nome}.")
+        self.carrinho.adicionar(produto_id, quantidade)
+
+    def itens_carrinho(self) -> list[ItemCarrinho]:
+        # Converte as tuplas (produto_id, quantidade) em objetos ItemCarrinho,
+        # que é o que o template index.html espera (item.produto, item.quantidade).
+        return [
+            ItemCarrinho(self.buscar_produto(produto_id), quantidade)
+            for produto_id, quantidade in self.carrinho.itens()
+        ]
+
+    def quantidade_no_carrinho(self) -> int:
+        return self.carrinho.total_de_unidades()
+
+    def total_carrinho(self) -> float:
+        return sum(item.subtotal for item in self.itens_carrinho())
+
+    def finalizar_compra(self) -> float:
+        if self.carrinho.vazio():
+            raise ValueError("Seu carrinho está vazio.")
+        total = self.total_carrinho()
+        for produto_id, quantidade in self.carrinho.itens():
+            self.buscar_produto(produto_id).baixar_estoque(quantidade)
+        self.carrinho.esvaziar()
+        return total
