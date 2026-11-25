@@ -1,21 +1,5 @@
 from app.models.carrinho import Carrinho
-from app.models.produto import Produto, formatar_moeda
-
-
-class ItemCarrinho:
-    """Um produto dentro do carrinho, com a quantidade escolhida."""
-
-    def __init__(self, produto: Produto, quantidade: int):
-        self.produto = produto
-        self.quantidade = quantidade
-
-    @property
-    def subtotal(self) -> float:
-        return self.produto.preco * self.quantidade
-
-    @property
-    def subtotal_formatado(self) -> str:
-        return formatar_moeda(self.subtotal)
+from app.models.produto import ItemCarrinho, Produto
 
 
 class Loja:
@@ -74,4 +58,3 @@ class Loja:
             self._produtos[pid].baixar_estoque(qtd)
         self._carrinho.esvaziar()
         return total
-

@@ -43,3 +43,19 @@ class Produto:
         if quantidade > self.estoque:
             raise ValueError(f"Estoque insuficiente para {self.nome}.")
         self.estoque -= quantidade
+
+
+class ItemCarrinho:
+    """Um produto dentro do carrinho, com a quantidade escolhida."""
+
+    def __init__(self, produto: Produto, quantidade: int):
+        self.produto = produto
+        self.quantidade = quantidade
+
+    @property
+    def subtotal(self) -> float:
+        return self.produto.preco * self.quantidade
+
+    @property
+    def subtotal_formatado(self) -> str:
+        return formatar_moeda(self.subtotal)
